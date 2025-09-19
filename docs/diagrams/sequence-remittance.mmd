@@ -1,0 +1,25 @@
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway
+    participant Payments
+    participant Ledger
+    participant Flutterwave
+    participant Notifications
+
+    Client->>Gateway: POST /payments/quotes
+    Gateway->>Payments: Create quote
+    Payments-->>Gateway: Quote with FX markup
+    Gateway-->>Client: Quote response
+
+    Client->>Gateway: POST /payments/transfers (Idempotency-Key)
+    Gateway->>Payments: Create transfer
+    Payments->>Ledger: reserve(reference)
+    Ledger-->>Payments: Pending transaction id
+    Payments->>Flutterwave: initiate payout
+    Flutterwave-->>Payments: Accepted + providerRef
+    Payments->>Ledger: emit TransferPending event
+    Payments->>Notifications: Publish pending notification
+    Payments-->>Gateway: Transfer accepted
+    Gateway-->>Client: 202 Accepted
+```

@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: cards-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.gigcred.example.com/
+server:
+  port: 8085
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: cards-service

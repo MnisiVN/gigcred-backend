@@ -1,0 +1,17 @@
+```mermaid
+sequenceDiagram
+    participant Flutterwave
+    participant Gateway
+    participant Payments
+    participant Ledger
+    participant Accounts
+
+    Flutterwave->>Gateway: POST /payments/webhooks/provider (SUCCESS)
+    Gateway->>Payments: webhook(reference, status)
+    Payments->>Ledger: post(transactionId)
+    Ledger-->>Payments: Posted ledger transaction
+    Payments->>Accounts: publish balance update event
+    Accounts-->>Payments: ACK
+    Payments-->>Gateway: 202 Accepted
+    Gateway-->>Flutterwave: 202 Accepted
+```

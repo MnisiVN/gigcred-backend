@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: ledger-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.gigcred.example.com/
+server:
+  port: 8084
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ledger-service

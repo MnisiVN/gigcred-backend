@@ -1,0 +1,19 @@
+resilience4j:
+  retry:
+    instances:
+      flutterwavePayout:
+        maxAttempts: 3
+        waitDuration: 2s
+  circuitbreaker:
+    instances:
+      flutterwavePayout:
+        slidingWindowSize: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 30s
+  ratelimiter:
+    instances:
+      payouts:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
