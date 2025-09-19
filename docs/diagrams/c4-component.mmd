@@ -1,0 +1,17 @@
+```mermaid
+C4Component
+    title Payments Domain Components
+    Container(paymentsSvc, "Payments Service", "Spring Boot", "Handles quotes, transfers, retries")
+    Component(paymentsApi, "PaymentsController", "REST API", "Validates requests and emits commands")
+    Component(quoteSvc, "QuoteService", "Service", "Calculates FX markups, caches quotes")
+    Component(transferSvc, "TransferService", "Service", "Idempotent transfer orchestration")
+    Component(idemSvc, "IdempotencyService", "Port", "Stores Idempotency Keys")
+    Component(flwAdapter, "FlutterwaveClientFacade", "Adapter", "Feign client with Resilience4j policies")
+    Component(ledgerPort, "LedgerPublisher", "Port", "Publishes events to ledger/outbox")
+
+    Rel(paymentsApi, quoteSvc, "Create quote")
+    Rel(paymentsApi, transferSvc, "Create transfer")
+    Rel(transferSvc, idemSvc, "Ensure idempotency")
+    Rel(transferSvc, flwAdapter, "Initiate payout")
+    Rel(transferSvc, ledgerPort, "Emit ledger events")
+```

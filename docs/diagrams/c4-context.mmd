@@ -1,0 +1,32 @@
+```mermaid
+C4Context
+    title GigCred Platform Context
+    Person(customer, "Gig Worker", "Uses GigCred for wallet, cards and credit builder")
+    Person(admin, "Ops Analyst", "Monitors compliance cases and reconciliations")
+
+    System_Boundary(gigcred, "GigCred Backend") {
+        System(gateway, "API Gateway/BFF", "OAuth2, rate limiting")
+        System(accounts, "Accounts & Wallet", "Accounts and balances")
+        System(payments, "Payments", "Quotes, transfers, bill pay")
+        System(ledger, "Ledger", "Double entry ledger")
+        System(scoring, "Credit Scoring", "GigCred score computation")
+        System(loans, "Loans", "Offers and agreements")
+        System(compliance, "Compliance", "AML/PEP screening")
+        System(notifications, "Notifications", "SMS/Email/Push")
+        System(ops, "Ops Service", "Outbox dispatcher, audit")
+    }
+
+    System_Ext(flutterwave, "Flutterwave FaaS", "KYC, payments, cards")
+    System_Ext(partnerBank, "Partner Bank", "Settlement accounts")
+    System_Ext(kafka, "Kafka", "Event backbone")
+
+    Rel(customer, gateway, "Uses", "HTTPS + JWT")
+    Rel(gateway, payments, "Routes APIs")
+    Rel(payments, flutterwave, "FaaS APIs", "OpenFeign")
+    Rel(payments, ledger, "Reserves/postings", "Kafka events")
+    Rel(ledger, partnerBank, "Daily reconciliation", "Reports")
+    Rel(accounts, notifications, "Balance alerts")
+    Rel(loans, scoring, "Pull score")
+    Rel(admin, ops, "Operational dashboards")
+    Rel(compliance, flutterwave, "Webhook callbacks")
+```

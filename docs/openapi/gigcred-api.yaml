@@ -1,0 +1,1047 @@
+openapi: 3.0.3
+info:
+  title: GigCred Platform API
+  version: 0.1.0
+  description: >-
+    Public API for the GigCred backend platform covering onboarding, accounts,
+    payments, ledger, scoring, loans, compliance, notifications and operational
+    tooling. All endpoints require OAuth2 bearer tokens unless explicitly marked
+    otherwise.
+servers:
+  - url: https://api.gigcred.example.com
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/profile:
+    get:
+      summary: Get profile summary
+      tags: [Gateway]
+      security:
+        - bearerAuth: [wallet:read]
+      responses:
+        '200':
+          description: Profile summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+  /api/v1/limits:
+    get:
+      summary: Get spend limits
+      tags: [Gateway]
+      security:
+        - bearerAuth: [wallet:read]
+      responses:
+        '200':
+          description: Limits payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitsResponse'
+  /api/v1/onboarding/{userId}/start:
+    post:
+      summary: Start onboarding and KYC
+      tags: [Onboarding]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KycRequest'
+      responses:
+        '202':
+          description: Onboarding record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingRecord'
+  /api/v1/onboarding/{userId}/documents:
+    post:
+      summary: Attach onboarding document
+      tags: [Onboarding]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: documentReference
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingRecord'
+  /api/v1/onboarding/{userId}:
+    get:
+      summary: Get onboarding state
+      tags: [Onboarding]
+      security:
+        - bearerAuth: [wallet:read]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current onboarding record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingRecord'
+        '404':
+          description: Not found
+  /api/v1/onboarding/webhooks/kyc:
+    post:
+      summary: Flutterwave KYC webhook
+      tags: [Onboarding]
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: status
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Accepted
+  /api/v1/accounts/{userId}:
+    get:
+      summary: Get wallet summary
+      tags: [Accounts]
+      security:
+        - bearerAuth: [wallet:read]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSummary'
+        '404':
+          description: Not found
+  /api/v1/accounts/{userId}/sync:
+    post:
+      summary: Upsert wallet balances
+      tags: [Accounts]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/WalletBalance'
+      responses:
+        '200':
+          description: Updated summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSummary'
+  /api/v1/payments/quotes:
+    post:
+      summary: Create FX quote
+      tags: [Payments]
+      security:
+        - bearerAuth: [remit:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        '201':
+          description: Quote created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+  /api/v1/payments/transfers:
+    post:
+      summary: Create remittance transfer
+      tags: [Payments]
+      security:
+        - bearerAuth: [remit:write]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '202':
+          description: Transfer accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+    get:
+      summary: List transfers
+      tags: [Payments]
+      security:
+        - bearerAuth: [remit:read]
+      responses:
+        '200':
+          description: Transfer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transfer'
+  /api/v1/payments/transfers/retry:
+    post:
+      summary: Retry pending transfers
+      tags: [Payments]
+      security:
+        - bearerAuth: [remit:write]
+      responses:
+        '200':
+          description: Retries attempted
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transfer'
+  /api/v1/payments/webhooks/provider:
+    post:
+      summary: Provider payout webhook
+      tags: [Payments]
+      parameters:
+        - in: query
+          name: reference
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: status
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Accepted
+  /api/v1/ledger/transactions:
+    post:
+      summary: Reserve funds in ledger
+      tags: [Ledger]
+      security:
+        - bearerAuth: [wallet:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerReserveRequest'
+      responses:
+        '202':
+          description: Pending ledger transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerTransaction'
+  /api/v1/ledger/transactions/{transactionId}/post:
+    post:
+      summary: Post a ledger transaction
+      tags: [Ledger]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Posted transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerTransaction'
+  /api/v1/ledger/transactions/pending:
+    get:
+      summary: List pending ledger transactions
+      tags: [Ledger]
+      security:
+        - bearerAuth: [wallet:read]
+      responses:
+        '200':
+          description: Pending transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerTransaction'
+  /api/v1/ledger/reconcile:
+    post:
+      summary: Run reconciliation
+      tags: [Ledger]
+      security:
+        - bearerAuth: [wallet:read]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: integer
+      responses:
+        '200':
+          description: Reconciliation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResult'
+  /api/v1/cards/{userId}/virtual:
+    post:
+      summary: Issue virtual card
+      tags: [Cards]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Card issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+  /api/v1/cards/{cardId}/freeze:
+    post:
+      summary: Freeze card
+      tags: [Cards]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '404':
+          description: Not found
+  /api/v1/cards/{cardId}/unfreeze:
+    post:
+      summary: Unfreeze card
+      tags: [Cards]
+      security:
+        - bearerAuth: [wallet:write]
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '404':
+          description: Not found
+  /api/v1/cards:
+    get:
+      summary: List cards for user
+      tags: [Cards]
+      security:
+        - bearerAuth: [wallet:read]
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Card list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+  /api/v1/scoring/compute:
+    post:
+      summary: Compute GigCred score
+      tags: [Scoring]
+      security:
+        - bearerAuth: [wallet:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreComputeRequest'
+      responses:
+        '200':
+          description: Score snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreSnapshot'
+  /api/v1/scoring/{userId}:
+    get:
+      summary: Retrieve score snapshot
+      tags: [Scoring]
+      security:
+        - bearerAuth: [wallet:read]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Score snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreSnapshot'
+        '404':
+          description: Not found
+  /api/v1/loans/offers:
+    post:
+      summary: Generate loan offers
+      tags: [Loans]
+      security:
+        - bearerAuth: [loans:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanOfferRequest'
+      responses:
+        '200':
+          description: Offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoanOffer'
+  /api/v1/loans/offers/{offerId}/accept:
+    post:
+      summary: Accept loan offer
+      tags: [Loans]
+      security:
+        - bearerAuth: [loans:write]
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agreement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanAgreement'
+        '404':
+          description: Not found
+  /api/v1/loans/agreements/{agreementId}:
+    get:
+      summary: Get agreement
+      tags: [Loans]
+      security:
+        - bearerAuth: [loans:read]
+      parameters:
+        - in: path
+          name: agreementId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agreement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanAgreement'
+        '404':
+          description: Not found
+  /api/v1/compliance/screenings:
+    post:
+      summary: Run compliance screening
+      tags: [Compliance]
+      security:
+        - bearerAuth: [compliance:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplianceScreeningRequest'
+      responses:
+        '200':
+          description: Screening case
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceCase'
+  /api/v1/compliance/cases/{caseId}:
+    get:
+      summary: Get compliance case
+      tags: [Compliance]
+      security:
+        - bearerAuth: [compliance:read]
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Case
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceCase'
+        '404':
+          description: Not found
+  /api/v1/notifications:
+    post:
+      summary: Send notification
+      tags: [Notifications]
+      security:
+        - bearerAuth: [notifications:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSendRequest'
+      responses:
+        '200':
+          description: Notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+    get:
+      summary: List notifications for user
+      tags: [Notifications]
+      security:
+        - bearerAuth: [notifications:read]
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+  /api/v1/ops/outbox:
+    post:
+      summary: Enqueue outbox message
+      tags: [Ops]
+      security:
+        - bearerAuth: [ops:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutboxRequest'
+      responses:
+        '200':
+          description: Message enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboxMessage'
+    get:
+      summary: List pending outbox messages
+      tags: [Ops]
+      security:
+        - bearerAuth: [ops:read]
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OutboxMessage'
+  /api/v1/ops/outbox/{messageId}/ack:
+    post:
+      summary: Ack outbox message
+      tags: [Ops]
+      security:
+        - bearerAuth: [ops:write]
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Acknowledged
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProfileResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        kycStatus:
+          type: string
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureFlag'
+    FeatureFlag:
+      type: object
+      properties:
+        name:
+          type: string
+        enabled:
+          type: boolean
+    LimitsResponse:
+      type: object
+      additionalProperties:
+        type: integer
+    KycRequest:
+      type: object
+      properties:
+        bvn:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        email:
+          type: string
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              content:
+                type: string
+              filename:
+                type: string
+    OnboardingRecord:
+      type: object
+      properties:
+        userId:
+          type: string
+        status:
+          type: string
+        documentRefs:
+          type: array
+          items:
+            type: string
+        providerReference:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AccountSummary:
+      type: object
+      properties:
+        userId:
+          type: string
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/WalletBalance'
+        asOf:
+          type: string
+          format: date-time
+    WalletBalance:
+      type: object
+      properties:
+        accountId:
+          type: string
+        currency:
+          type: string
+        availableCents:
+          type: integer
+        pendingCents:
+          type: integer
+    QuoteRequest:
+      type: object
+      required: [userId, sourceCurrency, destinationCurrency, sourceAmount, providerRate, markupPct, platformFeePct]
+      properties:
+        userId:
+          type: string
+        sourceCurrency:
+          type: string
+        destinationCurrency:
+          type: string
+        sourceAmount:
+          type: number
+          format: double
+        providerRate:
+          type: number
+          format: double
+        markupPct:
+          type: number
+          format: double
+        platformFeePct:
+          type: number
+          format: double
+    Quote:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        sourceCurrency:
+          type: string
+        destinationCurrency:
+          type: string
+        sourceAmount:
+          type: number
+          format: double
+        providerRate:
+          type: number
+          format: double
+        markup:
+          type: number
+        platformFee:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+    TransferRequest:
+      type: object
+      required: [quoteId, sourceAccountId, beneficiaryId, destinationCountry, clientReference]
+      properties:
+        quoteId:
+          type: string
+        sourceAccountId:
+          type: string
+        beneficiaryId:
+          type: string
+        destinationCountry:
+          type: string
+        clientReference:
+          type: string
+    Transfer:
+      type: object
+      properties:
+        id:
+          type: string
+        quoteId:
+          type: string
+        userId:
+          type: string
+        sourceAccountId:
+          type: string
+        beneficiaryId:
+          type: string
+        sourceAmount:
+          type: number
+          format: double
+        destinationAmount:
+          type: number
+          format: double
+        status:
+          type: string
+        providerReference:
+          type: string
+    LedgerReserveRequest:
+      type: object
+      required: [reference, debitAccountId, creditAccountId, amountCents]
+      properties:
+        reference:
+          type: string
+        debitAccountId:
+          type: string
+        creditAccountId:
+          type: string
+        amountCents:
+          type: integer
+    LedgerTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        postedAt:
+          type: string
+          format: date-time
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              accountId:
+                type: string
+              amountCents:
+                type: integer
+              type:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+    ReconciliationResult:
+      type: object
+      properties:
+        mismatches:
+          type: array
+          items:
+            type: object
+            properties:
+              accountId:
+                type: string
+              internalBalance:
+                type: integer
+              providerBalance:
+                type: integer
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        token:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ScoreComputeRequest:
+      type: object
+      required: [userId, onTimePayments, missedPayments, totalVolumeCents]
+      properties:
+        userId:
+          type: string
+        onTimePayments:
+          type: integer
+        missedPayments:
+          type: integer
+        totalVolumeCents:
+          type: integer
+    ScoreSnapshot:
+      type: object
+      properties:
+        userId:
+          type: string
+        score:
+          type: integer
+        features:
+          type: object
+          additionalProperties:
+            type: string
+        tier:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    LoanOfferRequest:
+      type: object
+      required: [userId, score]
+      properties:
+        userId:
+          type: string
+        score:
+          type: integer
+    LoanOffer:
+      type: object
+      properties:
+        offerId:
+          type: string
+        userId:
+          type: string
+        principalCents:
+          type: integer
+        feePct:
+          type: number
+        tenorDays:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+    LoanAgreement:
+      type: object
+      properties:
+        id:
+          type: string
+        offerId:
+          type: string
+        userId:
+          type: string
+        principalCents:
+          type: integer
+        feePct:
+          type: number
+        tenorDays:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ComplianceScreeningRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        pepMatch:
+          type: boolean
+        velocityAlerts:
+          type: integer
+    ComplianceCase:
+      type: object
+      properties:
+        caseId:
+          type: string
+        userId:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    NotificationSendRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        channel:
+          type: string
+        template:
+          type: string
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        channel:
+          type: string
+        template:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    OutboxRequest:
+      type: object
+      properties:
+        aggregate:
+          type: string
+        aggregateId:
+          type: string
+        type:
+          type: string
+        payload:
+          type: string
+    OutboxMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        aggregate:
+          type: string
+        aggregateId:
+          type: string
+        type:
+          type: string
+        payload:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        tries:
+          type: integer

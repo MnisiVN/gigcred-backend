@@ -1,0 +1,20 @@
+```mermaid
+sequenceDiagram
+    participant Scheduler
+    participant Loans
+    participant Payments
+    participant Ledger
+    participant Notifications
+
+    Scheduler->>Loans: trigger auto-debit job
+    Loans->>Loans: Identify due agreements
+    Loans->>Payments: initiate internal transfer (wallet debit)
+    Payments->>Ledger: reserve repayment transaction
+    Ledger-->>Payments: Pending entry
+    Payments->>Ledger: post(transactionId)
+    Ledger-->>Payments: Posted
+    Payments-->>Loans: Debit success
+    Loans->>Notifications: send repayment receipt
+    Notifications-->>Loans: ACK
+    Loans->>Scheduler: Job complete summary
+```
